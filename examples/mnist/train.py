@@ -1,19 +1,18 @@
 import os
 
-from clu import metric_writers
 import jax
 import jax.numpy as jnp
 import optax
 import orbax.checkpoint as ocp
 import tensorflow as tf
-
+from clu import metric_writers
 from swirl_dynamics import templates
+from swirl_dynamics.data.hdf5_utils import read_single_array
 from swirl_dynamics.lib import diffusion as dfn_lib
 from swirl_dynamics.projects import probabilistic_diffusion as dfn
-from swirl_dynamics.data.hdf5_utils import read_single_array
 
 
-def get_mnist_dataset(file_path: str, key: str, split:float, batch_size: int):
+def get_mnist_dataset(file_path: str, key: str, split: float, batch_size: int):
     # Read the dataset from the .hdf5 file.
     images = read_single_array(file_path, key)
 
@@ -43,6 +42,7 @@ def get_mnist_dataset(file_path: str, key: str, split:float, batch_size: int):
 
     return ds
 
+
 def main(mnist_folder: str, workidir: str):
     # *******
     # Dataset
@@ -51,9 +51,9 @@ def main(mnist_folder: str, workidir: str):
     # This is useful for determining the diffusion scheme and preconditioning
     # of the neural network parametrization.
     DATA_STD = 0.31
-    
+
     # ************
-    # Architecture 
+    # Architecture
     # ************
     denoiser_model = dfn_lib.PreconditionedDenoiserUNet(
         out_channels=1,
@@ -67,7 +67,7 @@ def main(mnist_folder: str, workidir: str):
         num_heads=8,
         sigma_data=DATA_STD,
     )
-    
+
     # ********
     # Training
     # ********
@@ -83,25 +83,27 @@ def main(mnist_folder: str, workidir: str):
         input_shape=(28, 28, 1),
         denoiser=denoiser_model,
         noise_sampling=dfn_lib.log_uniform_sampling(
-            diffusion_scheme, clip_min=1e-4, uniform_grid=True,
+            diffusion_scheme,
+            clip_min=1e-4,
+            uniform_grid=True,
         ),
         noise_weighting=dfn_lib.edm_weighting(data_std=DATA_STD),
     )
-    
+
     # **********
     # Parameters
     # **********
-    num_train_steps = 100_000  #@param
-    train_batch_size = 32  #@param
-    eval_batch_size = 32  #@param
-    initial_lr = 0.0  #@param
-    peak_lr = 1e-4  #@param
-    warmup_steps = 1000  #@param
-    end_lr = 1e-6  #@param
-    ema_decay = 0.999  #@param
-    ckpt_interval = 1000  #@param
-    max_ckpt_to_keep = 5  #@param
-    
+    num_train_steps = 100_000  # @param
+    train_batch_size = 32  # @param
+    eval_batch_size = 32  # @param
+    initial_lr = 0.0  # @param
+    peak_lr = 1e-4  # @param
+    warmup_steps = 1000  # @param
+    end_lr = 1e-6  # @param
+    ema_decay = 0.999  # @param
+    ckpt_interval = 1000  # @param
+    max_ckpt_to_keep = 5  # @param
+
     # *****
     # Train
     # *****
@@ -122,10 +124,10 @@ def main(mnist_folder: str, workidir: str):
         # exist in the diffusion models.
         ema_decay=ema_decay,
     )
-    
+
     templates.run_train(
         train_dataloader=get_mnist_dataset(
-            file_path=os.path.join(mnist_folder,'train.hdf5'),
+            file_path=os.path.join(mnist_folder, "train.hdf5"),
             key="image",
             split=0.75,
             batch_size=train_batch_size,
@@ -133,18 +135,16 @@ def main(mnist_folder: str, workidir: str):
         trainer=trainer,
         workdir=workdir,
         total_train_steps=num_train_steps,
-        metric_writer=metric_writers.create_default_writer(
-            workdir, asynchronous=False
-        ),
+        metric_writer=metric_writers.create_default_writer(workdir, asynchronous=False),
         metric_aggregation_steps=100,
         eval_dataloader=get_mnist_dataset(
-            file_path=os.path.join(mnist_folder,'train.hdf5'),
+            file_path=os.path.join(mnist_folder, "train.hdf5"),
             key="image",
             split=-0.25,
             batch_size=eval_batch_size,
         ),
-        eval_every_steps = 1000,
-        num_batches_per_eval = 2,
+        eval_every_steps=1000,
+        num_batches_per_eval=2,
         callbacks=(
             # This callback displays the training progress in a tqdm bar
             templates.TqdmProgressBar(
@@ -160,13 +160,13 @@ def main(mnist_folder: str, workidir: str):
             ),
         ),
     )
-    
+
 
 if __name__ == "__main__":
     # Folder where the downloaded dataset is stored
-    mnist_folder = "/work/FAC/FGSE/IDYST/tbeucler/downscaling/mlima/data/mnist"
-    
+    mnist_folder = "mlima-path/data/mnist"
+
     # Directory to store the training checkpoints
-    workdir = "/work/FAC/FGSE/IDYST/tbeucler/downscaling/mlima/s2s-downscaling/examples/mnist"
-    
+    workdir = "mlima-path/s2s-downscaling/examples/mnist"
+
     main(mnist_folder, workdir)
