@@ -13,16 +13,14 @@ def interpolate_1km(arr, factor=15):
     """
     Coarsen a 1 km-resolution array to 'factor' km by block averaging.
 
-    Parameters
-    ----------
+    Parameters:
     arr : np.ndarray
         Input array of shape (time, lat, lon).
     factor : int, optional
         Coarsening factor (default 15). The output grid cell covers
         factor x factor original pixels.
 
-    Returns
-    -------
+    Returns:
     np.ndarray
         Coarsened array of shape (time, lat//factor, lon//factor).
         Values are the mean of all non‑NaN pixels within each block.
