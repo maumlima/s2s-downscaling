@@ -72,6 +72,7 @@ def plot_psds(cpc, det, ens, lambda_star, psd_star, figs_dir):
         ax.set_xlabel("Wavelengths (km)")
         ax.set_ylabel("Power spectral density")
         ax.legend()
+        ax.grid(True)
 
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)

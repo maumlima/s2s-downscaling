@@ -785,6 +785,7 @@ def plot_lead_time_psd(
     ax.set_xlabel("Wavelengths (km)")
     ax.set_ylabel("Power spectral density")
     ax.legend()
+    ax.grid(True)
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -899,44 +900,47 @@ def plot_avFSS_table(
     wrf,
     cpc,
     figs_dir,
+    col_titles=("11-12 June 2018", "28-29 June 2021"),
 ):
-
-    # define FSS parameters
     thresholds = [0.5, 1.0, 1.5, 2.0, 2.5]
     num_neighbors = [15]  # , 30, 45, 60]
 
-    for event_idx in range(1, len(TIME_IDXS) // EVENT_LENGTH + 1):
-        time_slice = slice((event_idx - 1) * EVENT_LENGTH, event_idx * EVENT_LENGTH)
-        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(8, 6))
-        axes = axes.flatten()
+    for i_num, num in enumerate(num_neighbors):
+        fig, axes = plt.subplots(
+            nrows=4, ncols=2, figsize=(10, 11), sharex=True, sharey=True
+        )
 
         for lead_time_idx in range(4):
             lead_time_name = det_s2s.lead_time[lead_time_idx]
             print("avFSS -", lead_time_name)
 
-            # get values for lead time
-            det_s2s_values = np.expand_dims(
-                det_s2s.precip[lead_time_idx, time_slice], axis=0
-            )
-            ens_s2s_values = ens_s2s.precip[lead_time_idx, :, time_slice]
-            if lead_time_idx > 0:
-                det_diff_values = det_diff.precip[lead_time_idx - 1, :, time_slice]
-                ens_diff_values = ens_diff.precip[lead_time_idx - 1, :, time_slice]
-                wrf_values = wrf.precip[lead_time_idx - 1, :, time_slice]
-            cpc_values = cpc.precip[time_slice]
+            for col_idx, event_idx in enumerate([1, 2]):
+                ax = axes[lead_time_idx, col_idx]
+                time_slice = slice(
+                    (event_idx - 1) * EVENT_LENGTH, event_idx * EVENT_LENGTH
+                )
 
-            # arrays for model and parameters
-            det_s2s_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
-            ens_s2s_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
-            if lead_time_idx > 0:
-                det_diff_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
-                ens_diff_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
-                wrf_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
+                # Get values for lead time and event
+                det_s2s_values = np.expand_dims(
+                    det_s2s.precip[lead_time_idx, time_slice], axis=0
+                )
+                ens_s2s_values = ens_s2s.precip[lead_time_idx, :, time_slice]
+                if lead_time_idx > 0:
+                    det_diff_values = det_diff.precip[lead_time_idx - 1, :, time_slice]
+                    ens_diff_values = ens_diff.precip[lead_time_idx - 1, :, time_slice]
+                    wrf_values = wrf.precip[lead_time_idx - 1, :, time_slice]
+                cpc_values = cpc.precip[time_slice]
 
-            # get avFSS arrays
-            for i_thr, thr in enumerate(thresholds):
-                print("threshold:", thr)
-                for i_num, num in enumerate(num_neighbors):
+                # Initialize avFSS arrays
+                det_s2s_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
+                ens_s2s_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
+                if lead_time_idx > 0:
+                    det_diff_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
+                    ens_diff_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
+                    wrf_avfss_arr = np.zeros((len(thresholds), len(num_neighbors)))
+
+                # Get avFSS arrays
+                for i_thr, thr in enumerate(thresholds):
                     det_s2s_avfss_arr[i_thr, i_num] = get_av_fss(
                         det_s2s_values, cpc_values, thr, num
                     )
@@ -954,58 +958,77 @@ def plot_avFSS_table(
                             wrf_values, cpc_values, thr, num
                         )
 
-            if lead_time_idx == 0:
-                model_arrs = [det_s2s_avfss_arr, ens_s2s_avfss_arr]
-                model_labels = ["IFS det + NNI", "IFS ens + NNI"]
-            else:
-                model_arrs = [
-                    det_s2s_avfss_arr,
-                    ens_s2s_avfss_arr,
-                    det_diff_avfss_arr,
-                    ens_diff_avfss_arr,
-                    wrf_avfss_arr,
-                ]
-                model_labels = [
-                    "IFS det + NNI",
-                    "IFS ens + NNI",
-                    "DDPM det",
-                    "DDPM ens",
-                    "WRF",
-                ]
+                if lead_time_idx == 0:
+                    model_arrs = [det_s2s_avfss_arr, ens_s2s_avfss_arr]
+                    model_labels = ["IFS det + NNI", "IFS ens + NNI"]
+                else:
+                    model_arrs = [
+                        det_s2s_avfss_arr,
+                        ens_s2s_avfss_arr,
+                        det_diff_avfss_arr,
+                        ens_diff_avfss_arr,
+                        wrf_avfss_arr,
+                    ]
+                    model_labels = [
+                        "IFS det + NNI",
+                        "IFS ens + NNI",
+                        "DDPM det",
+                        "DDPM ens",
+                        "WRF",
+                    ]
 
-            # plot avFSS vs. thresholds for each num_neighbors
-            for i_num, num in enumerate(num_neighbors):
+                # Plot avFSS lines
                 for model_label, model_arr in zip(model_labels, model_arrs):
-                    axes[lead_time_idx].plot(
+                    ax.plot(
                         thresholds,
                         model_arr[:, i_num],
                         label=model_label,
                         color=MODEL_COLOR_DICT[model_label],
                         linestyle=MODEL_LINESTYLE[model_label],
                     )
-                # add legend and save
-                axes[lead_time_idx].set_xlim(
-                    thresholds[0] - 0.05, thresholds[-1] + 0.05
-                )
-                if lead_time_idx > 1:
-                    axes[lead_time_idx].set_xlabel("Threshold (mm/hr)")
-                    axes[lead_time_idx].set_xticks(thresholds)
-                if lead_time_idx % 2 == 0:
-                    axes[lead_time_idx].set_ylabel("avFSS")
-                if lead_time_idx == 1:
-                    axes[lead_time_idx].legend(loc="upper right")
-                axes[lead_time_idx].set_title(lead_time_name)
-                axes[lead_time_idx].spines["left"].set_position(
-                    ("data", thresholds[0] - 0.05)
-                )
-                axes[lead_time_idx].set_yticks(np.arange(0.0, 0.3, 0.05))
-                axes[lead_time_idx].set_ylim(0.0, 0.25)
-                _make_arrows(axes[lead_time_idx], thresholds[0] - 0.05, 1)
+
+                # Panel Lettering (a-h) with lead time
+                panel_idx = lead_time_idx * 2 + col_idx
+                ax.set_title(f"{chr(97 + panel_idx)}) {lead_time_name}")
+
+                # Elevated Column Headers above top row
+                if lead_time_idx == 0:
+                    ax.text(
+                        0.5,
+                        1.20,
+                        col_titles[col_idx],
+                        transform=ax.transAxes,
+                        ha="center",
+                        va="bottom",
+                        fontweight="bold",
+                        fontsize="large",
+                    )
+
+                # Formatting axis limits and ticks
+                ax.set_xlim(thresholds[0] - 0.05, thresholds[-1] + 0.05)
+                ax.set_ylim(0.0, 0.28)
+                ax.set_yticks(np.arange(0.0, 0.3, 0.05))
+                ax.spines["left"].set_position(("data", thresholds[0] - 0.05))
+                ax.grid(True)
+
+                if lead_time_idx == 3:
+                    ax.set_xlabel("Threshold (mm/hr)")
+                    ax.set_xticks(thresholds)
+                if col_idx == 0:
+                    ax.set_ylabel("avFSS")
+
+                # Single legend placement on panel b)
+                if lead_time_idx == 0 and col_idx == 1:
+                    ax.legend(loc="upper right", fontsize="small")
+
+                _make_arrows(ax, thresholds[0] - 0.05, 1)
 
         plt.tight_layout()
+        fig.subplots_adjust(top=0.92)
         fig.savefig(
-            os.path.join(figs_dir, f"fss/fss_num{num}_e{event_idx}.png"),
+            os.path.join(figs_dir, f"fss/fss_num{num}.png"),
             dpi=300,
+            bbox_inches="tight",
         )
         plt.close()
 
@@ -1040,29 +1063,29 @@ def make_plots(
 
     # # plots, plot and plots #
 
-    # plot maps
-    plot_lead_time_agg_raw(
-        climatology,
-        det_s2s,
-        cpc,
-        figs_dir,
-    )
-    print("agg maps raw saved")
+    # # plot maps
+    # plot_lead_time_agg_raw(
+    #     climatology,
+    #     det_s2s,
+    #     cpc,
+    #     figs_dir,
+    # )
+    # print("agg maps raw saved")
 
-    # aggs of all
-    for lead_time_idx in range(3):
-        plot_lead_time_agg(
-            det_s2s,
-            ens_s2s,
-            det_diff,
-            ens_diff,
-            wrf,
-            cpc,
-            lead_time_idx,
-            num_idx,
-            figs_dir,
-        )
-    print("maps complete saved")
+    # # aggs of all
+    # for lead_time_idx in range(3):
+    #     plot_lead_time_agg(
+    #         det_s2s,
+    #         ens_s2s,
+    #         det_diff,
+    #         ens_diff,
+    #         wrf,
+    #         cpc,
+    #         lead_time_idx,
+    #         num_idx,
+    #         figs_dir,
+    #     )
+    # print("maps complete saved")
 
     # # plot gifs for each lead time
     # plot_lead_time_gifs_raw(
@@ -1115,19 +1138,19 @@ def make_plots(
     #     )
     # print("distributions saved")
 
-    # # plot psds for each lead time
-    # for lead_time_idx in range(3):
-    #     plot_lead_time_psd(
-    #         det_s2s,
-    #         ens_s2s,
-    #         det_diff,
-    #         ens_diff,
-    #         wrf,
-    #         cpc,
-    #         lead_time_idx,
-    #         figs_dir,
-    #     )
-    # print("psds saved")
+    # plot psds for each lead time
+    for lead_time_idx in range(3):
+        plot_lead_time_psd(
+            det_s2s,
+            ens_s2s,
+            det_diff,
+            ens_diff,
+            wrf,
+            cpc,
+            lead_time_idx,
+            figs_dir,
+        )
+    print("psds saved")
 
     # # plot rank histogram for each lead time
     # for lead_time_idx in range(3):
@@ -1142,24 +1165,24 @@ def make_plots(
     #     )
     # print("rank histograms saved")
 
-    # # 0.1mm/h trim
-    # all_datasets = [climatology, det_s2s, ens_s2s, det_diff, ens_diff, wrf, cpc]
-    # for dataset in all_datasets:
-    #     dataset.precip = np.where(
-    #         (dataset.precip >= 0) & (dataset.precip < 0.1), 0.0, dataset.precip
-    #     )
+    # 0.1mm/h trim
+    all_datasets = [climatology, det_s2s, ens_s2s, det_diff, ens_diff, wrf, cpc]
+    for dataset in all_datasets:
+        dataset.precip = np.where(
+            (dataset.precip >= 0) & (dataset.precip < 0.1), 0.0, dataset.precip
+        )
 
-    # # plot avFSS for lead time
-    # plot_avFSS_table(
-    #     det_s2s,
-    #     ens_s2s,
-    #     det_diff,
-    #     ens_diff,
-    #     wrf,
-    #     cpc,
-    #     figs_dir,
-    # )
-    # print("avFSS saved")
+    # plot avFSS for lead time
+    plot_avFSS_table(
+        det_s2s,
+        ens_s2s,
+        det_diff,
+        ens_diff,
+        wrf,
+        cpc,
+        figs_dir,
+    )
+    print("avFSS saved")
 
 
 def main():

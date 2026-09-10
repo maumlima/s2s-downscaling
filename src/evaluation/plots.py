@@ -402,7 +402,7 @@ def _plot_12maps(
     vmax,
     cbar_label,
     figsize=(10, 14),
-    col_titles=("2018", "2021"),
+    col_titles=("11-12 June 2018", "28-29 June 2021"),
 ):
     fig, axs = plt.subplots(
         6,
@@ -445,13 +445,17 @@ def _plot_12maps(
         ax.set_title(titles[i])
         _write_label(ax, axis_labels[i])
 
-    plt.suptitle(
-        "2018" + 60 * " " + "2021",
-        fontsize="large",
-        fontweight="bold",
-        y=0.98,
-        x=0.47,
-    )
+        if i == 0 or i == 1:
+            ax.text(
+                0.5,
+                1.20,
+                col_titles[i],
+                transform=ax.transAxes,
+                ha="center",
+                va="bottom",
+                fontweight="bold",
+                fontsize="large",
+            )
 
     fig.subplots_adjust(
         left=0.1,
